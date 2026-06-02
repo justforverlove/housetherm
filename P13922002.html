@@ -1,0 +1,326 @@
+<!doctype html><html lang='zh-Hant'><head><meta charset='utf-8'><title>P13922002 — Final Project</title><style>
+@page { size: A4; margin: 18mm 16mm; }
+body { font-family: 'Noto Sans CJK TC','PingFang TC','Microsoft JhengHei',
+       -apple-system,Arial,sans-serif; line-height: 1.55; color:#1a1a1a;
+       max-width: 820px; margin: 24px auto; padding: 0 16px; font-size: 14px; }
+h1 { font-size: 22px; border-bottom: 3px solid #c0392b; padding-bottom: 6px; }
+h2 { font-size: 17px; margin-top: 22px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+h3 { font-size: 14px; color:#333; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12.5px; }
+th,td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+th { background: #f3f4f6; }
+code { background:#f4f4f4; padding:1px 4px; border-radius:3px; font-size:12px; }
+pre { background:#f7f7f9; border:1px solid #e3e3e8; border-radius:6px; padding:10px;
+      overflow:auto; font-size:11.5px; line-height:1.4; }
+blockquote { border-left:4px solid #c0392b; margin:8px 0; padding:4px 12px;
+             background:#fbf3f2; color:#444; }
+a { color:#1565c0; text-decoration:none; }
+</style></head><body><h1 id="housetherm-a-rent-anchored-decision-support-system-for-home-buyers-in-greater-taipei">HouseTherm (房價溫度計): A Rent-Anchored Decision-Support System for Home Buyers in Greater Taipei</h1>
+<p><strong>Big Data Systems — Final Project · National Taiwan University · Spring 2026</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Student ID</strong></td>
+<td>P13922002</td>
+</tr>
+<tr>
+<td><strong>GitHub repository</strong></td>
+<td><code>https://github.com/&lt;your-account&gt;/housetherm</code></td>
+</tr>
+<tr>
+<td><strong>Live demo</strong></td>
+<td><code>https://&lt;your-app&gt;.streamlit.app</code>  <em>(or Cloud Run URL)</em></td>
+</tr>
+<tr>
+<td><strong>Date</strong></td>
+<td>2026-06-02</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-overview">1. Overview</h2>
+<p>Raw real-estate data is abundant and public in Taiwan, yet a first-time buyer still cannot
+easily answer three questions: <em>Is this listing expensive? Will prices fall? Can I afford it?</em>
+<strong>HouseTherm</strong> turns the government's open <strong>Actual Price Registration (實價登錄, LVR)</strong> data into a
+decision-support product for buyers and real-estate agents in <strong>Taipei City and New Taipei City
+(雙北)</strong>.</p>
+<p>The analytical backbone is the <strong>Price-to-Rent Ratio (PRR)</strong> — the same dataset contains <em>both</em> sale
+and rental transactions, so we can anchor every sale price to what the same kind of property earns
+as rent. This bridges "technical capability" and "economic value": the system is technically a
+data pipeline, but its value proposition is <em>judgement</em> — telling a user whether a price is
+defensible against rental fundamentals and historical trend.</p>
+<hr />
+<h2 id="2-target-customer-required-component-1">2. Target Customer (Required Component 1)</h2>
+<p>HouseTherm serves a <strong>two-sided market</strong>:</p>
+<p><strong>(a) Real-estate agents / pre-sale sales teams (房仲 / 代銷) — the paying side (B2B).</strong>
+Agents who differentiate on <em>trust</em> (brand agencies, buyer's agents, salespeople facing
+price-skeptical clients) can use objective LVR-based evidence to show a client "this asking price
+is reasonable — here is the data," shortening negotiation and closing faster. The product is a
+<strong>sales-enablement tool</strong>: a one-page, exportable <em>fair-price report</em>.</p>
+<p><strong>(b) Home buyers (購屋族) — the lead-generation side (B2C).</strong>
+First-time, owner-occupier buyers in 雙北 — especially those considering the government's
+<strong>新青安 (New Youth Housing Loan)</strong> — use the dashboard as a reference: is the area expensive, is it
+cooling, what can I afford. They are served free to build word-of-mouth and credibility, which in
+turn makes the tool more persuasive for agents.</p>
+<p><strong>Why this wedge.</strong> Buyers in 雙北 face the most extreme affordability gap in Taiwan and the most
+public discussion (PTT <em>home-sale</em>, Dcard, 新青安 threads), so demand is easy to evidence. Agents
+have real willingness to pay because the tool directly helps them close. We explicitly <em>do not</em>
+target "everyone who buys property"; the wedge is <strong>trust-first agents + 雙北 first-time buyers</strong>.</p>
+<p><strong>An honest tension (good go-to-market material).</strong> The tool can label a listing "expensive,"
+which may discourage a sale — so not every agent wants it. Our customer is the subset that competes
+on transparency. This conflict of interest is analysed in §6.</p>
+<hr />
+<h2 id="3-evidence-of-demand-and-willingness-to-pay-required-component-2">3. Evidence of Demand and Willingness to Pay (Required Component 2)</h2>
+<p>We followed the project's guidance to <em>validate before building</em> and to <em>document the full
+process, not just the conclusion</em>. All steps are reproducible (§9).</p>
+<h3 id="31-data-acquisition-process">3.1 Data-acquisition process</h3>
+<ol>
+<li><strong>Source.</strong> Ministry of the Interior LVR open data, bulk seasonal download endpoint
+   <code>https://plvr.land.moi.gov.tw/DownloadSeason</code>. This is government open data, legally
+   re-usable. We download city <code>a</code> (Taipei) and <code>f</code> (New Taipei), file type <code>a</code>
+   (sale) and <code>c</code> (rental). Script: <a href="ingestion/scrapers/lvr_gov.py"><code>ingestion/scrapers/lvr_gov.py</code></a>
+   (with caching; unreleased quarters skipped automatically).</li>
+<li><strong>Coverage.</strong> 17 quarters, <strong>111S1–115S1 (2022 Q1 – 2026 Q1)</strong>:
+   <strong>344,626</strong> sale records + <strong>161,246</strong> rental records.</li>
+<li><strong>Cleaning</strong> (<a href="analysis/prr_validation.py"><code>analysis/prr_validation.py</code></a>) → <strong>228,767</strong> sale +
+   <strong>56,176</strong> whole-floor rental records:</li>
+<li>split by building type → <strong>大樓 / 華廈 / 公寓 / 透天</strong> (mixing types distorts medians, e.g. old
+     walk-ups blending into apartment-tower prices);</li>
+<li>compute a <strong>parking-excluded</strong> unit price <code>(total − parking price) / (area − parking area)</code>;</li>
+<li>drop <strong>non-arm's-length</strong> deals (notes flagging related-party / debt-relief / auction);</li>
+<li>keep residential use only; for rent keep <strong>whole-floor</strong> leases (matching "buy a whole unit");</li>
+<li><strong>IQR</strong> outlier trimming per (city × district × type) group.</li>
+</ol>
+<h3 id="32-finding-1-prices-are-expensive-relative-to-rent-the-thesis-holds">3.2 Finding 1 — prices are expensive relative to rent (the thesis holds)</h3>
+<table>
+<thead>
+<tr>
+<th>City</th>
+<th>Type</th>
+<th>Median sale</th>
+<th>PRR (yrs)</th>
+<th>Rental yield</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Taipei</td>
+<td>Apartment tower (大樓)</td>
+<td>82.3 萬/坪</td>
+<td>44.9</td>
+<td>2.23%</td>
+</tr>
+<tr>
+<td>Taipei</td>
+<td>Walk-up (公寓)</td>
+<td>58.7 萬/坪</td>
+<td>52.3</td>
+<td>1.91%</td>
+</tr>
+<tr>
+<td>New Taipei</td>
+<td>Apartment tower (大樓)</td>
+<td>46.3 萬/坪</td>
+<td>59.6</td>
+<td>1.68%</td>
+</tr>
+<tr>
+<td>New Taipei</td>
+<td>Walk-up (公寓)</td>
+<td>37.9 萬/坪</td>
+<td>43.4</td>
+<td>2.30%</td>
+</tr>
+</tbody>
+</table>
+<p>A healthy rental yield is ~4–5%; Greater Taipei sits at <strong>1.7–2.3%</strong>, i.e. <strong>43–60 years of rent</strong>
+to recoup the price. Type-splitting also reveals a non-obvious contrast: Taipei <em>towers</em> have a
+<em>lower</em> PRR than walk-ups (new towers command strong rents), while New Taipei <em>towers</em> carry the
+<em>highest</em> PRR.</p>
+<h3 id="33-finding-2-prices-are-near-historical-highs">3.3 Finding 2 — prices are near historical highs</h3>
+<p>Including 115S1, the latest-quarter median is <strong>86.9 萬/坪 (Taipei)</strong> and <strong>51.0 萬/坪 (New Taipei)</strong>,
+both the <strong>highest in the 4-year window</strong> and above <strong>94%</strong> of all quarters.</p>
+<h3 id="34-finding-3-rent-vs-price-divergence-is-detectable-per-area">3.4 Finding 3 — rent-vs-price divergence is detectable per area</h3>
+<p>For each (district × type) we track PRR over time. Example — <strong>Zhonghe towers (中和大樓)</strong>: PRR rose
+to <strong>70 (114S1)</strong> then fell to <strong>57 (115S1)</strong> as price dropped ~11% YoY while rent rose ~10%. This
+is exactly the "price decoupled from rent, then loosens" signal the product surfaces.</p>
+<h3 id="35-willingness-to-pay">3.5 Willingness to pay</h3>
+<ul>
+<li><strong>Agents (B2B):</strong> comparable market-intelligence products (e.g. 實價登錄 Pro, 樂居) charge monthly
+  subscriptions; a credibility/closing tool justifies a per-seat fee. The value is faster closes and
+  fewer price disputes.</li>
+<li><strong>Buyers (B2C):</strong> value is framed non-monetarily — avoiding overpaying on a multi-million-NTD
+  purchase, and saving the hours currently spent manually cross-checking LVR. Monetised indirectly
+  (lead-gen, freemium) plus a voluntary donation channel (Buy Me a Coffee).</li>
+</ul>
+<blockquote>
+<p><strong>Honest status.</strong> Quantitative public-data evidence is complete. User interviews and a formal
+competitor-pricing table are listed as next steps (§8); the methodology to run them is in
+<a href="analysis/survey/"><code>analysis/survey/</code></a>.</p>
+</blockquote>
+<hr />
+<h2 id="4-system-design-required-component-technical">4. System Design (Required Component — technical)</h2>
+<h3 id="41-architecture-lambda">4.1 Architecture (Lambda)</h3>
+<pre><code> Data sources            Ingestion          Processing                 Serving            Delivery
+┌──────────────┐      ┌────────────┐   ┌────────────────────┐    ┌──────────────┐   ┌──────────────┐
+│ LVR sale (a) │      │ scrapers   │   │ Batch layer        │    │ PostgreSQL   │   │ Streamlit    │
+│ LVR rent (c) │─────▶│  → Kafka   │──▶│  PRR / percentile  │───▶│ (history)    │──▶│ dashboard    │
+│ (雙北,17季)  │      │ (msg queue)│   │  trend / screen    │    │ Redis (hot)  │   │ REST/report  │
+└──────────────┘      └────────────┘   │ Speed layer        │    │ MinIO (raw)  │   │ fair-price   │
+   UI &quot;refresh&quot; ──────────┘            │  event alerts (P2) │    └──────────────┘   └──────────────┘
+                                       └────────────────────┘
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Production tool (course paradigm)</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Message queue</td>
+<td><strong>Kafka</strong></td>
+<td>decouple scrapers from processing; replayable, scalable ingestion</td>
+</tr>
+<tr>
+<td>Batch layer</td>
+<td><strong>Spark (batch)</strong></td>
+<td>recompute PRR / historical percentiles / trend over the full history</td>
+</tr>
+<tr>
+<td>Speed layer</td>
+<td><strong>Spark Structured Streaming</strong></td>
+<td>low-latency policy/price-event alerts (Phase 2)</td>
+</tr>
+<tr>
+<td>Hot store</td>
+<td><strong>Redis</strong></td>
+<td>instant lookup of latest per-district state</td>
+</tr>
+<tr>
+<td>Cold store</td>
+<td><strong>PostgreSQL</strong></td>
+<td>structured historical transactions / indicators (SQL)</td>
+</tr>
+<tr>
+<td>Raw lake</td>
+<td><strong>MinIO</strong> (S3-compatible)</td>
+<td>original seasonal CSVs / snapshots</td>
+</tr>
+<tr>
+<td>Delivery</td>
+<td><strong>Streamlit</strong> + exportable HTML report</td>
+<td>dashboard, calculators, report</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-implemented-prototype-vs-production-design-full-disclosure">4.2 Implemented prototype vs production design (full disclosure)</h3>
+<p>The submitted, runnable prototype is <strong>single-node</strong> to keep the demo reproducible: the <em>roles</em> of
+Kafka/Spark/Redis/PostgreSQL/MinIO are played by a <code>pandas</code> + file-based pipeline and a Python
+<strong>subprocess job runner</strong> (<a href="ingestion/pipeline.py"><code>ingestion/pipeline.py</code></a>) triggered by the UI's
+"🔄 update" button (ingestion → processing → serving). The table above is the <strong>scale-out mapping</strong>:
+because the workload is embarrassingly parallel by (district × type × quarter), the batch stage maps
+directly onto Spark, the ingestion onto a Kafka topic, and the serving CSVs onto Redis/PostgreSQL.</p>
+<h3 id="43-data-sources-delivery-scalability">4.3 Data sources, delivery, scalability</h3>
+<ul>
+<li><strong>Sources:</strong> LVR sale + rent (primary, legal). 591 / 樂居 considered only as optional, rate-limited
+  research scrapers — <strong>not</strong> wired to the public UI button, due to ToS (see §6).</li>
+<li><strong>Delivery:</strong> an interactive Streamlit dashboard, a downloadable one-page <strong>fair-price report</strong>
+  (HTML, print-to-PDF), and the underlying summary CSVs as a data feed.</li>
+<li><strong>Scalability/cost:</strong> data volume (~10⁵ rows/quarter for 雙北) is trivial for a single node;
+  national coverage (~22 cities) or per-listing streaming is the 10–100× case that justifies the
+  Kafka+Spark design. Deployment targets scale-to-zero (Cloud Run) to minimise cost (§7).</li>
+</ul>
+<hr />
+<h2 id="5-product-features">5. Product Features</h2>
+<ol>
+<li><strong>🌡️ PRR temperature</strong> by city → district → <strong>building type</strong>, vs the same-type cross-region median.</li>
+<li><strong>📐 Rent-vs-price divergence</strong>: dual-axis price/rent time series + PRR-vs-own-history, with an
+   automatic reading (e.g. "rent weakening but price sticky → likely to loosen").</li>
+<li><strong>🚦 Entry-timing light</strong>: combines valuation (PRR) × momentum (6-month price change) into a
+   red/amber/green call with one-line advice.</li>
+<li><strong>🏷️ "Where not to overpay"</strong>: screens districts that are <em>cooling</em> (negative momentum) and
+   <em>relatively cheap</em> (PRR below the same-type median).</li>
+<li><strong>🔍 Comparable pricing</strong>: enter price + size, filter comps by <strong>size range</strong> and <strong>period
+   (last 2y / prior 2y / all)</strong>; shows percentile, negotiation band (P25–P75), histogram, and the
+   most recent comparable sales <strong>with addresses</strong>.</li>
+<li><strong>💰 Multi-product loan calculator</strong>: 新青安 / standard first-home / second-home (credit-controlled
+   60% LTV) / personal loan; with the <strong>新青安 payment-cliff</strong> simulation — the 5-year grace period
+   raises the monthly payment ~<strong>×2.8</strong> (14,792 → 41,299 on a NT$10M loan).</li>
+<li><strong>🔄 Affordability reverse-calc</strong>: income × debt ratio + down payment → affordable total price and
+   which districts are within reach (e.g. NT$100k/month → ~NT$12.2M).</li>
+<li><strong>🧭 Policy &amp; risk signals</strong>: 新青安 demand-pull, central-bank credit controls, "volume leads price,"
+   and foreclosure/cliff risk.</li>
+<li><strong>🗺️ Map</strong> (pydeck + Carto street tiles): districts coloured by PRR <em>or</em> momentum, hover tooltips.</li>
+<li><strong>📄 Fair-price one-page report</strong>: exportable HTML for agents to show clients.</li>
+</ol>
+<hr />
+<h2 id="6-go-to-market-difficulties-bonus">6. Go-to-Market Difficulties (Bonus)</h2>
+<ul>
+<li><strong>Agent conflict of interest.</strong> A tool that flags "expensive" can deter sales; only
+  trust-differentiated agents adopt it. Mitigation: position as a <em>closing-acceleration</em> and
+  <em>dispute-reduction</em> tool, not a "cheap-hunting" tool.</li>
+<li><strong>Data acquisition &amp; legal.</strong> LVR is free and legally re-publishable — a strong moat against the
+  cost/risk of scraping. 591/樂居 carry ToS and anti-scraping risk, so they are excluded from the
+  public pipeline. LVR addresses are already public, but we still respect PDPA by not enriching with
+  personal data.</li>
+<li><strong>Rental data coverage.</strong> Rental LVR only became broadly mandatory ~2024, so PRR time series start
+  at 112S4; pre-2024 rent is sparse. Disclosed in-product and in the methodology.</li>
+<li><strong>Cold-start / two-sided dynamics.</strong> Buyers attract agents and vice-versa; we bootstrap the buyer
+  side with a free, shareable tool and the credibility badge.</li>
+<li><strong>Competition &amp; moats.</strong> Incumbents (591 實價, 樂居, 實價登錄 Pro, the government site) show prices;
+  our moat is <em>interpretation</em> — rent-anchored valuation, divergence detection, timing light, and the
+  agent-ready report — not raw data.</li>
+<li><strong>Unit economics.</strong> Marginal cost per user ≈ 0 (open data + scale-to-zero hosting). Revenue:
+  agent subscriptions + per-report fees + voluntary donations; profitable at a small number of paying
+  agents.</li>
+</ul>
+<hr />
+<h2 id="7-deployment-bonus">7. Deployment (Bonus)</h2>
+<p>Streamlit is a stateful server, so it cannot run on Firebase Hosting (static only). The cost-saving
+Google path is <strong>Cloud Run</strong> (containerised, scale-to-zero, free tier), optionally fronted by
+Firebase Hosting; the zero-effort free path is <strong>Streamlit Community Cloud</strong>. A <code>Dockerfile</code>
+(with <code>fonts-noto-cjk</code> for chart CJK rendering) and full instructions are in
+<a href="DEPLOY.md"><code>DEPLOY.md</code></a>. The live URL is on page 1.</p>
+<hr />
+<h2 id="8-limitations-future-work">8. Limitations &amp; Future Work</h2>
+<ul>
+<li>PRR series begin 112S4 due to rental-registration coverage.</li>
+<li>The system surfaces <strong>transparent leading indicators</strong>, not a price forecast; momentum can be noisy
+  in small districts (mitigated by 2-quarter smoothing and minimum-sample thresholds).</li>
+<li>The distributed stack (Kafka/Spark/Redis/PostgreSQL/MinIO) is <em>designed and mapped</em> but the
+  prototype runs single-node; wiring real Kafka+Spark is the next engineering step.</li>
+<li>Demand evidence to add: user interviews and a formal competitor-pricing table.</li>
+</ul>
+<hr />
+<h2 id="9-reproducibility-repository">9. Reproducibility &amp; Repository</h2>
+<pre><code class="language-bash">pip install -r requirements.txt
+python ingestion/scrapers/lvr_gov.py     # download 雙北 LVR (cached)
+python analysis/prr_validation.py        # clean + PRR + per-type tables + sale_clean.csv
+python analysis/trend_signals.py         # per-quarter panel + cooling/value screen
+streamlit run delivery/dashboard/app.py  # dashboard
+</code></pre>
+<p>Repository layout: <code>ingestion/</code> (scrapers + pipeline), <code>analysis/</code> (validation, trend signals,
+methodology README, outputs), <code>delivery/</code> (dashboard, loan calculator, districts), <code>data/</code>
+(<code>raw/</code> gitignored, <code>processed/</code> shipped), <code>docs/</code>. See <a href="README.md"><code>README.md</code></a> and
+<a href="analysis/README.md"><code>analysis/README.md</code></a>.</p>
+<hr />
+<h2 id="references-data-sources">References / Data Sources</h2>
+<ul>
+<li>Ministry of the Interior, <strong>Actual Price Registration (實價登錄)</strong> open data —
+  <code>https://plvr.land.moi.gov.tw/DownloadSeason</code></li>
+<li>Ministry of Finance / 八大行庫, <strong>新青安 (New Youth Housing Loan)</strong> program terms.</li>
+<li>Central Bank of the R.O.C., selective credit-control measures.</li>
+<li>Course materials: distributed file systems, batch/stream processing (Spark), message queues
+  (Kafka), NoSQL/SQL stores (Redis/PostgreSQL).</li>
+<li>Open-source: Streamlit, pandas, NumPy, Matplotlib, pydeck (attributed; see <code>requirements.txt</code>).
+```</li>
+</ul></body></html>

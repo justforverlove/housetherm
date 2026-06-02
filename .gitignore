@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# 大型原始資料（用 lvr_gov.py 重新下載即可；不入版控）
+data/raw/zips/
+data/raw/*.csv
+
+# 🔒 機敏資訊（切勿上傳！payment/API 金鑰）
+Stripe_Bymeacoffee
+.env
+*.key
+secrets*
+
+# 原始國家級 LVR 批次 xls（本專案 pipeline 未使用，太大）
+lvr_landxls/
+
+# 課程提供檔案 / 個人筆記（非交付物）
+BDA_Final_Project-1.pdf
+Final Project.docx
+Score
+
+# OS
+.DS_Store

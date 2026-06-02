@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | **Student ID** | P13922002 |
-| **GitHub repository** | `https://github.com/<your-account>/housetherm` |
-| **Live demo** | `https://<your-app>.streamlit.app`  *(or Cloud Run URL)* |
+| **GitHub repository** | `https://github.com/justforverlove/housetherm` |
+| **Live demo** | `https://housetherm-bczk9hmmigrxh74m24aep7.streamlit.app` |
 | **Date** | 2026-06-02 |
 
 ---

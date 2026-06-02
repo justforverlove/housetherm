@@ -5,8 +5,8 @@
 > 以及有哪些領先指標顯示未來下修風險。
 
 **Report (PDF):** `P13922002.pdf`
-**GitHub:** `https://github.com/<you>/housetherm`
-**Live Demo (bonus):** `https://housetherm.<platform>.app`
+**GitHub:** `https://github.com/justforverlove/housetherm`
+**Live Demo (bonus):** `https://housetherm-bczk9hmmigrxh74m24aep7.streamlit.app`
 
 ---
 
